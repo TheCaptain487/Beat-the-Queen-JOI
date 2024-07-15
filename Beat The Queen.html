@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beat the Queen</title>
+    <style>
+        #gameArea {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #videoLibraryControl {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+        #videoPlayer {
+            width: 960px;
+            height: 540px;
+            border: 10px solid rgba(0, 0, 0, 0);
+            margin-bottom: 20px;
+        }
+        #deck {
+            display: flex;
+            align-items: center;
+        }
+        #cardBack {
+            width: 200px;
+            height: 300px;
+            cursor: pointer;
+        }
+        #drawnCard {
+            width: 200px;
+            height: 300px;
+            margin-left: 20px;
+        }
+        #timer {
+            margin-top: 20px;
+            font-size: 40px;
+        }
+
+        #meanvalue {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 40px;
+            text-align: center;
+        }
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 40px;
+            text-align: center;
+        }
+        #startButton {
+            margin-bottom: 10px;
+            style="display: none;"
+        }
+        #rules {
+            margin-bottom: 10px;
+        }
+        #cardsLeft {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+        #skipButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ff5733;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #skipButton:hover {
+            background-color: #0066ff;
+        }
+        #restartButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ff5733;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #restartButton:hover {
+            background-color: #0066ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameArea">
+        <div id="videoLibraryControl">
+            <label for="videoSize">Video Library Size:</label>
+            <input type="number" id="videoSize" min="1">
+            <button id="setButton" onclick="setVideoSize()">SET</button>
+        </div>
+        <button id="startButton" onclick="startGame()" style="display: none;">Start Game</button>
+        <div id="rules">Try your luck BETA! Black = GO, Red = STOP, Black Jack = CUM, Queen = GAME OVER!</div>
+        <video id="videoPlayer" autoplay muted playsinline></video>
+        <div id="deck">
+            <img id="cardBack" src="images/card_back.jpg"">
+            <img id="drawnCard" style="display: none;">
+        </div>
+        <div id="timer">Timer: 0</div>
+        <div id="meanvalue">How mean do I feel today??? How lucky do you feel???</div>
+        <div id="message">So you think you can beat the QUEEN...</div>
+        <div id="cardsLeft">Cards Left: 52</div>
+
+    </div>
+    <script>
+       let deck = [];
+let drawnCards = 0;
+let timerInterval;
+let remainingTime = 0;
+let videoSize = 1;  // Default to 1 video available
+let videoIndices = []; // Array to store video indices
+let videoIndex = 0; // Index to track current video
+const evenOrOdds = Math.floor(Math.random() * 2); // Randomly set to 0 or 1
+let firstJackDrawn = false; // Flag to keep track if the first Jack has been drawn
+let firstQueenDrawn = false; // Flag to keep track if the first Queen has been drawn
+const feelingMean = Math.floor(Math.random() * 101); // Random number between 0 and 100
+
+function setVideoSize() {
+            const inputSize = parseInt(document.getElementById('videoSize').value, 10);
+            if (!isNaN(inputSize) && inputSize > 0) {
+                videoSize = inputSize;
+                console.log(`Video size set to: ${videoSize}`);
+                videoIndices = Array.from({length: videoSize}, (_, i) => i + 1); // Update videoIndices array
+                shuffleArray(videoIndices); // Shuffle the array
+                document.getElementById('startButton').style.display = 'inline-block'; // Show the start button
+            } else {
+                alert('Please enter a valid number greater than 0.');
+            }
+        }
+
+// Function to set the mean value message
+function setMeanValueMessage() {
+    const meanValueElement = document.getElementById('meanvalue');
+    if (feelingMean < 30) {
+        meanValueElement.textContent = "You are Lucky - I am feeling KIND today!";
+    } else if (feelingMean >=30 && feelingMean < 50) {
+        meanValueElement.textContent = "I am feeling just a LITTLE mean today - Good Luck!";
+    } else {
+        meanValueElement.textContent = "I am feeling EXTRA MEAN today! You don't stand a CHANCE!";
+    }
+}
+// Initialize the deck with 52 cards
+function initializeDeck() {
+    const suits = ['H', 'D', 'C', 'S'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    for (const suit of suits) {
+        for (const rank of ranks) {
+            deck.push({ rank, suit });
+        }
+    }
+    deck = shuffleDeck(deck); // Use the shuffleDeck function here
+
+    // Initialize and shuffle video indices
+    for (let i = 1; i <= videoSize; i++) {
+        videoIndices.push(i);
+    }
+    shuffleArray(videoIndices);
+}
+
+// Function to shuffle the deck with a bias
+function shuffleDeck(deck) {
+    if (feelingMean >= 50) {
+        const heartsAndDiamonds = deck.filter(card => card.suit === 'H' || card.suit === 'D');
+        const others = deck.filter(card => card.suit !== 'H' && card.suit !== 'D');
+
+        // Shuffle heartsAndDiamonds and others separately
+        shuffleArray(heartsAndDiamonds);
+        shuffleArray(others);
+
+        // Concatenate heartsAndDiamonds at the start and others at the end
+        return heartsAndDiamonds.concat(others);
+    } else {
+        // Shuffle normally
+        shuffleArray(deck);
+        return deck;
+    }
+}
+
+// Fisher-Yates shuffle algorithm
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+        // Get the rank value for the timer calculation
+        function getRankValue(rank) {
+            if (rank === 'J' || rank === 'Q' || rank === 'K' || rank === 'A') return 11;
+            return parseInt(rank);
+        }
+
+        // Get the timer value for the card
+function getTimerValue(rank) {
+    const rankValue = getRankValue(rank);  // Get the rank's value (e.g., 2-10, 10 for face cards)
+    if (rank === 'Q') return 10; // Return 10 for a Queen
+    if (rank === 'J' || rank === 'K' || rank === 'A') return 60; // Return 60 for Jack, King, and Ace
+    if (rank === '2' || rank === '3') return 10; // Return 10 for 2 and 3
+
+    // Add randomness to the timer value for other ranks, and clamp it between 10 and 60
+    const baseTimer = rankValue * rankValue; // Base timer value based on the rank
+    const randomFactor = Math.random() * 30 - 10; // Random factor between -10 and +20
+    const timerValue = baseTimer + randomFactor; // Add the random factor to the base timer value
+    
+    // Clamp the result to ensure it's between 10 and 60
+    return Math.min(Math.max(Math.floor(timerValue), 10), 60);
+}
+
+
+
+
+       // Update the message box based on the card drawn
+function updateMessage(card, time) {
+    // If a Queen is drawn, set the message to 'GAME OVER - Queen Drawn!'
+    if (card.rank === 'Q') {
+        document.getElementById('message').textContent = 'GAME OVER - Queen Drawn!';
+        return; // No further updates needed
+    }
+
+    // If a black Jack is drawn, set the message to 'Lucky! Make sure you finish in time'
+    if (card.rank === 'J' && (card.suit === 'C' || card.suit === 'S')) {
+        document.getElementById('message').textContent = 'Lucky! Make sure you finish in time';
+        return; // No further updates needed
+    }
+
+    // For other cards, update the message based on the suit
+    if (card.suit === 'H' || card.suit === 'D') {
+        document.getElementById('message').textContent = `STOP! HANDS OFF! No touching!`;
+    } else {
+        document.getElementById('message').textContent = `Stroke while you can LOSER...`;
+    }
+}
+
+        // Update the border color of the video player
+function updateBorder(card) {
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (card.rank === 'Q') {
+        videoPlayer.style.borderColor = 'red'; // Always red for Queens
+    } else if (card.suit === 'H' || card.suit === 'D') {
+        videoPlayer.style.borderColor = 'red';
+    } else if (card.suit === 'C' || card.suit === 'S') {
+        videoPlayer.style.borderColor = 'green';
+    }
+}
+
+        // Update the cards left counter
+        function updateCardsLeft() {
+            const cardsLeft = 51 - drawnCards;
+            if (cardsLeft > 0) {
+                document.getElementById('cardsLeft').textContent = `${cardsLeft} cards to go`;
+            } else {
+                document.getElementById('cardsLeft').textContent = 'GAME OVER';
+            }
+        }
+
+        // Set the video based on the card drawn
+function setCardVideo(card, rankValue) {
+    const videoPlayer = document.getElementById('videoPlayer');
+    let videoFile;
+
+    // Get the next video in the shuffled array
+    if (videoIndex >= videoIndices.length) {
+        // If we've exhausted the array, shuffle it again
+        shuffleArray(videoIndices);
+        videoIndex = 0;
+    }
+    videoFile = `videos/video${videoIndices[videoIndex]}.mp4`;
+    videoIndex++;
+
+    // Set the video source
+    videoPlayer.src = videoFile;
+
+    // Set a random start time for the video playback
+    videoPlayer.addEventListener('loadeddata', () => {
+        // Calculate the start time within the video
+        const maxStartTime = Math.min(videoPlayer.duration - 10, 60); // Max start time should be 60 or less
+        const startTime = Math.floor(Math.random() * (maxStartTime - 10 + 1)) + 10;
+        videoPlayer.currentTime = startTime; // Set the video start time
+
+        // Log the start time for debugging purposes
+        console.log(`Setting video start time to: ${startTime}s`);
+    });
+
+    // Play the video
+    videoPlayer.play().catch((error) => {
+        console.error('Error playing video:', error);
+    });
+}
+
+
+
+        // Start the game
+        function startGame() {
+            initializeDeck();
+            drawnCards = 0;
+            document.getElementById('startButton').style.display = 'none';
+            document.getElementById('rules').style.display = 'none';
+            document.getElementById('videoLibraryControl').style.display = 'none';
+            setMeanValueMessage()
+            drawCard();
+        }
+
+        // Skip the current card
+        function skipCard() {
+            clearInterval(timerInterval);
+            remainingTime = 0;  // Set remaining time to 0 to end the current timer
+            updateTimer();  // Call updateTimer to hide the card and draw the next one
+        }
+// Draw a card from the deck
+function drawCard() {
+    if (drawnCards < 52) {
+        const card = deck.pop();
+        const cardImg = document.getElementById('drawnCard');
+
+       // Ignore the first Jack drawn and draw another card if feelingMean is 1
+    if (card.rank === 'J' && !firstJackDrawn && feelingMean >= 30) {
+        firstJackDrawn = true;
+        document.getElementById('timer').textContent = "That was a Jack but I'm feeling mean... Wait 10 sec";
+        document.getElementById('message').textContent = "That was a Jack but I'm feeling mean... Wait 10 sec";
+
+        // Start a temporary 10-second timer
+        let tempTime = 10;
+        const tempInterval = setInterval(() => {
+            if (tempTime > 0) {
+                document.getElementById('timer').textContent = `Wait ${tempTime--} seconds...`;
+            } else {
+                clearInterval(tempInterval);
+                document.getElementById('timer').textContent = ''; // Clear the message after 10 seconds
+                drawCard(); // Recursively draw another card
+            }
+        }, 1000);
+
+        return;
+    }
+
+    // Ignore the first Queen drawn and draw another card
+    if (card.rank === 'Q' && !firstQueenDrawn && feelingMean < 30) {
+        firstQueenDrawn = true;
+        document.getElementById('timer').textContent = "That was a Queen but I'm feeling kind... You get 1 more chance! Wait 10 sec";
+        document.getElementById('message').textContent = "That was a Queen but I'm feeling kind... You get 1 more chance! Wait 10 sec";
+
+        // Start a temporary 10-second timer
+        let tempTime = 10;
+        const tempInterval = setInterval(() => {
+            if (tempTime > 0) {
+                document.getElementById('timer').textContent = `Wait ${tempTime--} seconds...`;
+            } else {
+                clearInterval(tempInterval);
+                document.getElementById('timer').textContent = ''; // Clear the message after 10 seconds
+                drawCard(); // Recursively draw another card
+            }
+        }, 1000);
+
+        return;
+    }
+        cardImg.src = `images/${card.rank}${card.suit}.jpg`;
+        cardImg.style.display = 'block';
+
+        const rankValue = getRankValue(card.rank);
+        setCardVideo(card, rankValue);
+
+        clearInterval(timerInterval);
+        remainingTime = getTimerValue(card.rank); // Set the timer based on rank
+        updateTimer();
+        timerInterval = setInterval(updateTimer, 1000);
+
+        updateMessage(card, remainingTime);
+        updateBorder(card);
+        updateCardsLeft();
+        drawnCards++;
+
+        // Check for special cards
+        if (card.rank === 'Q') {
+            endGame('GAME OVER - Queen Drawn!');
+            return; // Exit the function to prevent further execution
+        } else if (card.rank === 'J' && (card.suit === 'C' || card.suit === 'S')) {
+            endGame('Lucky! Make sure you finish in time');
+            return; // Exit the function to prevent further execution
+        }
+    } else {
+        endGame('GAME OVER');
+    }
+}
+
+        // Update the timer display
+        function updateTimer() {
+            if (remainingTime > 0) {
+                remainingTime--;
+                document.getElementById('timer').textContent = `Timer: ${remainingTime}`;
+            } else {
+                clearInterval(timerInterval);
+                document.getElementById('drawnCard').style.display = 'none'; // Hide the drawn card
+                if (drawnCards < 52) {
+                    drawCard();
+                } else {
+                    endGame('GAME OVER');
+                }
+            }
+        }
+
+        // End the game and display a message
+function endGame(message) {
+
+    const videoPlayer = document.getElementById('videoPlayer');
+    const cardImg = document.getElementById('drawnCard');
+    const cardsLeftDisplay = document.getElementById('cardsLeft');
+    const skipButton = document.getElementById('skipButton');
+
+    // Always hide the SKIP button at the end of the game
+    skipButton.style.display = 'none';
+
+    if (message === 'GAME OVER - Queen Drawn!') {
+        // Display the Queen card on the screen
+        const queenCard = deck.find(card => card.rank === 'Q'); // Find the Queen card
+        if (queenCard) {
+            cardImg.src = `images/${queenCard.rank}${queenCard.suit}.jpg`;
+            cardImg.style.display = 'block';
+        }
+
+        // Choose a video based on the evenOrOdds constant
+    if (evenOrOdds === 0) {
+        // Even numbers: Selects from video2.mp4, video4.mp4, ..., video118.mp4
+        const evenNumber = 2 * (Math.floor(Math.random() * 59) + 1); // Random even number between 2 and 118
+        videoFile = `videos/video${evenNumber}.mp4`;
+    } else {
+        // Odd numbers: Selects from video1.mp4, video3.mp4, ..., video119.mp4
+        const oddNumber = 2 * Math.floor(Math.random() * 60) + 1; // Random odd number between 1 and 119
+        videoFile = `videos/video${oddNumber}.mp4`;
+    }
+
+    // Log the chosen video file
+    console.log(`Playing video: ${videoFile}`);
+    
+    // Set the video source
+    videoPlayer.src = videoFile;
+    
+    // Set a random start time for the video playback
+    const videoElement = document.createElement('video');
+    videoElement.src = videoFile;
+    videoElement.addEventListener('loadeddata', () => {
+        // Calculate the start time within the video
+        const maxStartTime = Math.min(videoElement.duration - 10, 60); // Max start time should be 60 or less
+        const startTime = Math.floor(Math.random() * (maxStartTime - 10 + 1)) + 10;
+        videoPlayer.currentTime = startTime; // Set the video start time
+    });
+
+    // Play the video
+    videoPlayer.play().catch((error) => {
+        console.error('Error playing video:', error);
+    });
+        videoPlayer.style.border = '10px solid red'; // Set red border
+        
+
+         // Add a new interval to end the game after 10 seconds
+         clearInterval(timerInterval);
+        remainingTime = 10; // Set timer for 10 seconds
+        timerInterval = setInterval(() => {
+            remainingTime--;
+            document.getElementById('timer').textContent = `Time Left: ${remainingTime}s`;
+
+            if (remainingTime <= 0) {
+                endGame('GAME OVER');
+            }
+        }, 1000);
+
+        // Reset the cards left display
+        cardsLeftDisplay.textContent = '0 cards to go';
+    } else if (message === 'Lucky! Make sure you finish in time') {
+        // Display the Jack card on the screen (black color)
+        const jackCard = deck.find(card => (card.rank === 'J' && (card.suit === 'C' || card.suit === 'S'))); // Find a Jack card
+        if (jackCard) {
+            cardImg.src = `images/${jackCard.rank}${jackCard.suit}.jpg`;
+            cardImg.style.display = 'block';
+        }
+
+        // Set up the video for the final message
+        // Choose a video based on the evenOrOdds constant
+    if (evenOrOdds === 0) {
+        // Even numbers: Selects from video2.mp4, video4.mp4, ..., video118.mp4
+        const evenNumber = 2 * (Math.floor(Math.random() * 59) + 1); // Random even number between 2 and 118
+        videoFile = `videos/video${evenNumber}.mp4`;
+    } else {
+        // Odd numbers: Selects from video1.mp4, video3.mp4, ..., video119.mp4
+        const oddNumber = 2 * Math.floor(Math.random() * 60) + 1; // Random odd number between 1 and 119
+        videoFile = `videos/video${oddNumber}.mp4`;
+    }
+
+    // Log the chosen video file
+    console.log(`Playing video: ${videoFile}`);
+    
+    // Set the video source
+    videoPlayer.src = videoFile;
+    
+    // Set a random start time for the video playback
+    const videoElement = document.createElement('video');
+    videoElement.src = videoFile;
+    videoElement.addEventListener('loadeddata', () => {
+        // Calculate the start time within the video
+        const maxStartTime = Math.min(videoElement.duration - 10, 120); // Max start time should be 120 or less
+        const startTime = Math.floor(Math.random() * (maxStartTime - 10 + 1)) + 10;
+        videoPlayer.currentTime = startTime; // Set the video start time
+    });
+
+    // Play the video
+    videoPlayer.play().catch((error) => {
+        console.error('Error playing video:', error);
+    });
+        videoPlayer.style.border = '10px solid green'; // Set green border
+
+        videoPlayer.play().catch((error) => {
+            console.error('Error playing video:', error);
+        });
+
+
+        // Add a new interval to end the game after 60 seconds
+        clearInterval(timerInterval);
+        remainingTime = 60; // Set timer for 60 seconds
+        timerInterval = setInterval(() => {
+            remainingTime--;
+            document.getElementById('timer').textContent = `Time Left: ${remainingTime}s`;
+
+            if (remainingTime <= 0) {
+                endGame('GAME OVER');
+            }
+        }, 1000);
+
+        // Disable the Start Game button
+        document.getElementById('startGame') = 'none'; // Disable the Start Game button
+
+        // Reset the cards left display
+        cardsLeftDisplay.textContent = '0 cards to go';
+    } else {
+        // For all other messages, handle generic game over scenario
+        document.getElementById('timer').textContent = message; // Display the end game message
+        cardImg.style.display = 'none'; // Hide the latest card
+        videoPlayer.pause(); // Stop the video playback
+        videoPlayer.src = ''; // Clear the video source
+        videoPlayer.style.border = 'none'; // Remove the border
+        document.getElementById('startGame').disabled = true; // Disable the Start Game button
+    
+        // Reset the cards left display
+        cardsLeftDisplay.textContent = '0 cards to go';
+    }
+}
+
+
+
+
+    </script>
+</body>
+</html>
